@@ -1,0 +1,35 @@
+/* Sits inside the app's own top-centre icon row, so Clean UI hides it too. */
+.gev-i18n-picker {
+  appearance: none;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(0, 246, 255, 0.28);
+  border-radius: 4px;
+  background:
+    linear-gradient(transparent, transparent),
+    rgba(4, 12, 18, 0.72);
+  color: #cfefff;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.gev-i18n-picker:hover,
+.gev-i18n-picker:focus-visible {
+  border-color: rgba(0, 246, 255, 0.7);
+  outline: none;
+}
+
+.gev-i18n-picker option {
+  background: #04121a;
+  color: #cfefff;
+}
+
+/* Fallback anchoring if the app's icon row is ever renamed upstream. */
+body > .gev-i18n-picker {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 2000;
+}
