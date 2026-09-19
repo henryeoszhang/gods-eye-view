@@ -7,7 +7,13 @@ import {
   CCTV_MEDIA_MAX_BODY_BYTES,
   NSW_IMAGE_ORIGIN,
   NSW_IMAGE_USER_AGENT,
+  TOKYO_SUIBO_STATION_URL,
+  TOKYO_SUIBO_IMAGE_PREFIX,
+  TOKYO_SUIBO_MAX_STATION_BYTES,
+  TOKYO_SUIBO_CAPTURE_INTERVAL_MS,
+  TOKYO_SUIBO_CAPTURE_SLACK_MS,
 } from './constants.js';
+import { readCappedResponseText } from '../common/http.js';
 /**
  * Generate a synthetic SVG billboard image for a CCTV camera placeholder.
  *
@@ -513,4 +519,144 @@ export async function fetchCctvImageFromUpstream(
     clearTimeout(timeoutId);
     controller.abort();
   }
+}
+
+/** Resolved newest-frame URLs, keyed by station code, with the moment the next
+ * capture is due. Bounded because the Tokyo pack is itself capped. */
+const tokyoFrameCache = new Map();
+
+/**
+ * Absolute frame URL from the `IMAGE[0]` entry on a Tokyo station page.
+ *
+ * The page writes it relative ("../../img/itv/7B08/7B0820260919163000.jpeg").
+ * Resolving it against the station page and then pinning the result to the
+ * image prefix is what keeps a page that starts emitting foreign URLs from
+ * turning the proxy into an open relay.
+ *
+ * @param {string} html - Station page body.
+ * @param {string} stationUrl - The page the body came from.
+ * @returns {?string} Absolute, origin-pinned frame URL.
+ */
+export function resolveTokyoSuiboFrameUrl(html, stationUrl) {
+  const match = String(html ?? '').match(/IMAGE\[0\]\s*=\s*"([^"]+)"/);
+  if (!match) return null;
+  let absolute;
+  try {
+    absolute = new URL(match[1], stationUrl).toString();
+  } catch {
+    return null;
+  }
+  return absolute.startsWith(TOKYO_SUIBO_IMAGE_PREFIX) ? absolute : null;
+}
+
+/**
+ * When the capture in `frameUrl` will be superseded.
+ *
+ * The filename ends in the capture time, so the next capture is one interval
+ * later; holding the resolved URL until then costs one station-page fetch per
+ * capture per camera anyone is actually looking at. An unparseable name falls
+ * back to one interval from now rather than re-fetching on every frame.
+ *
+ * @param {string} frameUrl
+ * @param {number} now - Epoch ms.
+ * @returns {number} Epoch ms.
+ */
+export function tokyoSuiboFrameExpiry(frameUrl, now = Date.now()) {
+  const stamp = String(frameUrl ?? '').match(/(\d{14})\.jpe?g$/i);
+  if (!stamp) return now + TOKYO_SUIBO_CAPTURE_INTERVAL_MS;
+  const [, s] = stamp;
+  // The bureau timestamps in JST and publishes no zone in the name.
+  const captured = Date.parse(
+    `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T` +
+      `${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}+09:00`,
+  );
+  if (!Number.isFinite(captured)) {
+    return now + TOKYO_SUIBO_CAPTURE_INTERVAL_MS;
+  }
+  const due =
+    captured + TOKYO_SUIBO_CAPTURE_INTERVAL_MS + TOKYO_SUIBO_CAPTURE_SLACK_MS;
+  // A clock skew or a stalled camera must not pin a URL indefinitely.
+  return Math.min(
+    Math.max(due, now + 30_000),
+    now + TOKYO_SUIBO_CAPTURE_INTERVAL_MS,
+  );
+}
+
+/**
+ * Fetch the newest frame for a Tokyo river-monitoring camera.
+ *
+ * Tokyo publishes no "latest frame" URL: the filename carries the capture
+ * timestamp and the only index is the station page. This resolves that page
+ * once per capture and then serves the frame itself.
+ *
+ * @param {object} source - Registered camera source carrying `stationCode`.
+ * @returns {Promise<?{ok:boolean, body:Buffer, contentType:string}>}
+ */
+export async function fetchTokyoSuiboSnapshot(
+  source,
+  {
+    fetchImpl = fetch,
+    timeoutMs = CCTV_FRAME_FETCH_TIMEOUT_MS,
+    now = Date.now,
+  } = {},
+) {
+  const stationCode = String(source?.stationCode ?? '').trim();
+  if (!/^[0-9]{4,8}$/.test(stationCode)) return null;
+
+  const at = now();
+  const cached = tokyoFrameCache.get(stationCode);
+  let frameUrl = cached && cached.expiresAt > at ? cached.url : null;
+
+  if (!frameUrl) {
+    const stationUrl = TOKYO_SUIBO_STATION_URL(stationCode);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const page = await fetchImpl(stationUrl, {
+        headers: {
+          Accept: 'text/html',
+          'User-Agent': 'gods-eye-view-cctv-proxy/1.0',
+        },
+        redirect: 'manual',
+        signal: controller.signal,
+      });
+      if (!page.ok) {
+        try {
+          await page.body?.cancel();
+        } catch {
+          /* no-op */
+        }
+        return null;
+      }
+      const html = await readCappedResponseText(
+        page,
+        TOKYO_SUIBO_MAX_STATION_BYTES,
+      );
+      if (html.tooLarge) return null;
+      frameUrl = resolveTokyoSuiboFrameUrl(html.text, stationUrl);
+      if (!frameUrl) return null;
+      tokyoFrameCache.set(stationCode, {
+        url: frameUrl,
+        expiresAt: tokyoSuiboFrameExpiry(frameUrl, at),
+      });
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  const image = await fetchCctvImageFromUpstream(frameUrl, {
+    fetchImpl,
+    timeoutMs,
+  });
+  // A frame that has rotated away 404s; drop the memo so the next request
+  // resolves the page again instead of serving the stale URL for a full cycle.
+  if (!image?.ok) tokyoFrameCache.delete(stationCode);
+  return image;
+}
+
+/** Test seam: forget every resolved Tokyo frame URL. */
+export function resetTokyoSuiboFrameCache() {
+  tokyoFrameCache.clear();
 }

@@ -518,10 +518,17 @@ const entries = {
   'Thermal Threat Board': '热成像威胁面板',
   'City Overload': '城市过载',
   'Omniscience Pullback': '全知拉远',
+  LOADING: '加载中',
+  DEGRADED: '降级',
+  STALE: '已过期',
+  PARTIAL: '部分',
+  FALLBACK: '回退',
+  UNAVAILABLE: '不可用',
+  UNCERTAIN: '不确定',
 };
 
 const t = (value) => entries[value] ?? value;
-const feedState = { ON: '开启', OFF: '关闭' };
+const feedState = { ON: '开启', OFF: '关闭', LOADING: '加载中', DEGRADED: '降级', STALE: '已过期', PARTIAL: '部分', FALLBACK: '回退', UNAVAILABLE: '不可用', UNCERTAIN: '不确定' };
 
 // Strings the app composes at runtime. Non-global regexes only (see translate.js).
 const patterns = [
@@ -533,7 +540,7 @@ const patterns = [
       `${t(style)} · ${feedState[flag]} · ${hold}秒 ＋ ${travel}秒`,
   ],
   [/^(.+) unavailable: (.+)$/, (name, reason) => `${t(name)} 不可用：${t(reason)}`],
-  [/^(.+): (ON|OFF)$/, (name, flag) => `${t(name)}：${feedState[flag]}`],
+  [/^(.+): (ON|OFF|LOADING|DEGRADED|STALE|PARTIAL|FALLBACK|UNAVAILABLE|UNCERTAIN)$/, (name, flag) => `${t(name)}：${feedState[flag]}`],
   [/^(.+) · never$/, (source) => `${t(source)} · 从未更新`],
   [/^Detection overlay: (.+)$/, (mode) => `探测叠加层：${t(mode)}`],
   [/^paste (.+)$/, (key) => `粘贴 ${key}`],

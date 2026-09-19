@@ -55,6 +55,11 @@ import {
   DEFAULT_CALGARY_MAX_SOURCES,
   CALGARY_DOWNTOWN,
   CALGARY_MAX_CATALOG_BYTES,
+  TOKYO_SUIBO_CATALOG_URL,
+  TOKYO_SUIBO_CAMERA_KBN,
+  TOKYO_SUIBO_ANCHORS,
+  TOKYO_SUIBO_MAX_CATALOG_BYTES,
+  DEFAULT_TOKYO_SUIBO_MAX_SOURCES,
   CCTV_SOURCE_FETCH_TIMEOUT_MS,
 } from './constants.js';
 import {
@@ -78,7 +83,10 @@ import {
   prioritizeSources,
 } from './normalize.js';
 import { directionToHeading } from '../../../src/data/directionText.js';
-import { readResponseJsonCapped } from '../common/http.js';
+import {
+  readResponseJsonCapped,
+  readResponseTextCapped,
+} from '../common/http.js';
 /**
  * Fetch and parse Austin traffic camera records from the city Open Data portal.
  *
@@ -1589,6 +1597,202 @@ export async function loadCalgarySourcesFromOpenData() {
   } catch (error) {
     console.warn(
       '[CCTV] Calgary camera download error:',
+      error?.message || error,
+    );
+    return [];
+  }
+}
+
+/** Tokyo's flood-information map page inlines its station table as a set of
+ * parallel `var name = ['a','b',...]` arrays. Read one of them. */
+function tokyoSuiboArray(html, name) {
+  const declaration = html.indexOf(`var ${name}`);
+  if (declaration < 0) return [];
+  const open = html.indexOf('[', declaration);
+  const close = html.indexOf(']', open);
+  if (open < 0 || close < 0) return [];
+  return html
+    .slice(open + 1, close)
+    .split(',')
+    .map((value) => value.trim().replace(/^'|'$/g, ''));
+}
+
+/** Degrees/minutes/seconds -> decimal degrees, or null when any part is junk. */
+function tokyoSuiboDegrees(degrees, minutes, seconds) {
+  const d = toFiniteNumber(degrees);
+  const m = toFiniteNumber(minutes);
+  const s = toFiniteNumber(seconds);
+  if (d === null || m === null || s === null) return null;
+  return d + m / 60 + s / 3600;
+}
+
+/** Tokyo Metropolis, including the Izu and Ogasawara islands — 八ッ瀬川 sits on
+ * Chichijima, 1,000 km south of the mainland, and is a real prefectural camera. */
+export function isLikelyTokyoCoordinate(lat, lon) {
+  if (!isPlausibleLatLon(lat, lon)) return false;
+  return lat > 24 && lat < 36.1 && lon > 138.9 && lon < 154.1;
+}
+
+/**
+ * Parse the flood-information map page into camera records.
+ *
+ * Exported so the parser can be tested against a captured page without a
+ * network round-trip, and so a future upstream layout change fails in a test
+ * rather than silently returning an empty catalog.
+ *
+ * @param {string} html - The `tsim0102g.html` body.
+ * @returns {Array<object>} Normalized camera source objects.
+ */
+export function parseTokyoSuiboCatalog(html) {
+  const text = String(html ?? '');
+  const code = tokyoSuiboArray(text, 'arrryKansokujoCd');
+  const name = tokyoSuiboArray(text, 'arrryKansokujoNm');
+  const kind = tokyoSuiboArray(text, 'arrryKansokujoKbn');
+  const station = tokyoSuiboArray(text, 'arrryTougouCd');
+  // The latitude-degrees array is the one upstream name without the doubled
+  // "rr" typo the others carry; both spellings are load-bearing.
+  const latDeg = tokyoSuiboArray(text, 'arrayIdoFun');
+  const latMin = tokyoSuiboArray(text, 'arrryIdoFun');
+  const latSec = tokyoSuiboArray(text, 'arrryIdoByo');
+  const lonDeg = tokyoSuiboArray(text, 'arrryKeidoDo');
+  const lonMin = tokyoSuiboArray(text, 'arrryKeidoFun');
+  const lonSec = tokyoSuiboArray(text, 'arrryKeidoByo');
+
+  const lengths = [
+    code,
+    name,
+    kind,
+    station,
+    latDeg,
+    latMin,
+    latSec,
+    lonDeg,
+    lonMin,
+    lonSec,
+  ].map((row) => row.length);
+  // The arrays are positional: a length mismatch means the page changed shape
+  // and every row would be misaligned, so publish nothing rather than a
+  // catalog of cameras pinned to the wrong rivers.
+  if (!lengths[0] || new Set(lengths).size !== 1) return [];
+
+  const cameras = [];
+  const seen = new Set();
+  for (let index = 0; index < code.length; index += 1) {
+    if (kind[index] !== TOKYO_SUIBO_CAMERA_KBN) continue;
+    const cameraCode = String(code[index] || '').trim();
+    const stationCode = String(station[index] || '').trim();
+    if (!/^[0-9A-Z]{2,8}$/.test(cameraCode)) continue;
+    if (!/^[0-9]{4,8}$/.test(stationCode)) continue;
+    const lat = tokyoSuiboDegrees(latDeg[index], latMin[index], latSec[index]);
+    const lon = tokyoSuiboDegrees(lonDeg[index], lonMin[index], lonSec[index]);
+    if (!isLikelyTokyoCoordinate(lat, lon)) continue;
+    const id = `tokyo-suibo-${cameraCode.toLowerCase()}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const label = String(name[index] || '').trim() || cameraCode;
+    cameras.push({
+      id,
+      name: label,
+      city: 'Tokyo',
+      cityId: 'tokyo',
+      provider: 'Tokyo Metropolitan Government Bureau of Construction',
+      lat: Number(lat.toFixed(6)),
+      lon: Number(lon.toFixed(6)),
+      // The bureau publishes no camera facing. Headings therefore use the
+      // shared id-hash fallback at low confidence, as headingless TfL,
+      // Fintraffic and Calgary cameras do, and the operator corrects them
+      // with the calibration gizmo.
+      headingDeg: fallbackHeadingFromId(id),
+      headingConfidence: 'low',
+      // River-monitoring cameras look down at a channel from a nearby bank or
+      // bridge, which is a tighter and steeper shot than a traffic camera.
+      pitchDeg: -22,
+      fovDeg: 50,
+      rangeM: 150,
+      mountHeightM: 7,
+      // Tokyo's river corridors sit just above sea level; the client's one-shot
+      // ground snap corrects this prior wherever 3D tiles are loaded.
+      groundElevationM: 5,
+      feedType: 'image',
+      // Frames carry the capture timestamp in their filename, so there is no
+      // stable URL to register here. The proxy resolves the newest frame per
+      // camera at frame time; `stationCode` is the key it resolves with.
+      stationCode,
+      sourceKind: 'tokyo-suibo',
+      license:
+        'Camera positions: 東京都建設局 河川監視カメラ位置情報データ (CC BY 4.0). ' +
+        'Frames: 東京都水防災総合情報システム.',
+      code: cameraDisplayCode(cameraCode),
+    });
+  }
+  return cameras;
+}
+
+/**
+ * Fetch Tokyo Metropolitan Government river-monitoring cameras, keyless.
+ *
+ * The catalog is the flood-information map page; frames are resolved per
+ * camera at frame time (see fetchTokyoSuiboSnapshot), so this loader makes one
+ * request for the whole prefecture and none per camera.
+ *
+ * @returns {Promise<Array<object>>} Normalized camera source objects.
+ */
+export async function loadTokyoSuiboSourcesFromOpenData() {
+  try {
+    const endpoint =
+      process.env.CCTV_TOKYO_CATALOG_URL || TOKYO_SUIBO_CATALOG_URL;
+    const resp = await fetch(endpoint, {
+      headers: { Accept: 'text/html', 'User-Agent': 'gods-eye-view' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(CCTV_SOURCE_FETCH_TIMEOUT_MS),
+    });
+    const discard = async () => {
+      try {
+        await resp.body?.cancel();
+      } catch {
+        /* no-op */
+      }
+      return [];
+    };
+    if (resp.status >= 300 && resp.status < 400) {
+      console.warn(
+        '[CCTV] Tokyo catalog redirected; redirects are not followed',
+      );
+      return discard();
+    }
+    if (!resp.ok) {
+      console.warn('[CCTV] Tokyo camera download failed:', resp.status);
+      return discard();
+    }
+    const html = await readResponseTextCapped(
+      resp,
+      TOKYO_SUIBO_MAX_CATALOG_BYTES,
+    );
+    const cameras = parseTokyoSuiboCatalog(html);
+    if (!cameras.length) {
+      console.warn(
+        '[CCTV] Tokyo catalog parsed no cameras; page layout may have changed',
+      );
+      return [];
+    }
+    const maxRaw = Number(
+      process.env.CCTV_TOKYO_MAX_SOURCES || DEFAULT_TOKYO_SUIBO_MAX_SOURCES,
+    );
+    const maxCount = Number.isFinite(maxRaw)
+      ? Math.max(8, Math.min(400, Math.floor(maxRaw)))
+      : DEFAULT_TOKYO_SUIBO_MAX_SOURCES;
+    const prioritized = prioritizeSources(
+      cameras,
+      maxCount,
+      TOKYO_SUIBO_ANCHORS,
+    );
+    console.log(
+      `[CCTV] Loaded Tokyo camera sources: ${cameras.length} (using nearest ${prioritized.length})`,
+    );
+    return prioritized;
+  } catch (error) {
+    console.warn(
+      '[CCTV] Tokyo camera download error:',
       error?.message || error,
     );
     return [];

@@ -17,6 +17,7 @@ import {
   loadWarendorfSourcesFromCatalog,
   loadNswSourcesFromOpenData,
   loadCalgarySourcesFromOpenData,
+  loadTokyoSuiboSourcesFromOpenData,
 } from './sources.js';
 
 /** Env kill switch: unset or anything but "0" means enabled. */
@@ -85,6 +86,11 @@ const LIVE_PACKS = [
     name: 'calgary',
     enabled: () => envEnabled('CCTV_CALGARY_ENABLED'),
     load: loadCalgarySourcesFromOpenData,
+  },
+  {
+    name: 'tokyo',
+    enabled: () => envEnabled('CCTV_TOKYO_ENABLED'),
+    load: loadTokyoSuiboSourcesFromOpenData,
   },
 ];
 /**

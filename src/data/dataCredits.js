@@ -164,6 +164,14 @@ export const DATA_CREDITS = [
       'license CC BY 4.0',
   },
   {
+    key: 'tokyo-cctv',
+    html:
+      'River-monitoring cameras (Tokyo): 東京都建設局 — camera positions from ' +
+      '<a href="https://catalog.data.metro.tokyo.lg.jp/dataset/t000014d0000000028" target="_blank" rel="noopener">河川監視カメラ位置情報データ</a> ' +
+      '(<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>), frames from ' +
+      '<a href="https://www.kasen-suibo.metro.tokyo.lg.jp/" target="_blank" rel="noopener">東京都水防災総合情報システム</a>',
+  },
+  {
     key: 'calgary-cctv',
     html:
       'Traffic cameras (Calgary): contains information licensed under the ' +

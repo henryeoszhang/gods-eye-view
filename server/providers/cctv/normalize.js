@@ -510,6 +510,10 @@ export function normalizeSourceItem(item) {
       item.code || String(item.name || '').toUpperCase() || item.id || '',
     ),
     sourceKind: String(item.sourceKind || item.kind || 'configured'),
+    // Pack-supplied key for a frame URL that cannot be registered up
+    // front. Tokyo's frame filenames carry the capture timestamp, so the
+    // proxy resolves the newest one per camera from this station code.
+    stationCode: String(item.stationCode || '').trim(),
     // Optional CAL badge input (cctv-v2 design §3b/§9.2, additive-only per the
     // global constraints — nothing else in this file changes): hand-authored
     // file/env catalog entries may declare poseSource:'curated' so the panel

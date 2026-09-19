@@ -236,6 +236,36 @@ export const CALGARY_DOWNTOWN = { lat: 51.0461, lon: -114.0626 };
  * body cannot be buffered without limit. */
 export const CALGARY_MAX_CATALOG_BYTES = 4 * 1024 * 1024;
 
+/** Tokyo Metropolitan Government river-monitoring cameras (建設局河川部).
+ * The bureau publishes camera positions as CC BY 4.0 open data, but the only
+ * machine-readable list that also carries the station CODE the frame host keys
+ * on is the flood-information map page, which inlines parallel station arrays.
+ * There is no JSON endpoint and no "latest frame" URL. */
+export const TOKYO_SUIBO_ORIGIN = 'https://www.kasen-suibo.metro.tokyo.lg.jp';
+export const TOKYO_SUIBO_CATALOG_URL = `${TOKYO_SUIBO_ORIGIN}/im/uryosuii/tsim0102g.html`;
+/** Per-station page. Keyed by the station's 統合コード, not its camera code. */
+export const TOKYO_SUIBO_STATION_URL = (tougouCd) =>
+  `${TOKYO_SUIBO_ORIGIN}/im/uryosuii/tsim0105g_${encodeURIComponent(tougouCd)}.html`;
+/** The only prefix Tokyo camera frames may come from. */
+export const TOKYO_SUIBO_IMAGE_PREFIX = `${TOKYO_SUIBO_ORIGIN}/img/itv/`;
+/** 観測所区分 "07" is a 映像監視局 — the bureau's own cameras. "09" is a link
+ * out to another operator's camera PAGE (Weathernews, neighbouring
+ * prefectures, ward systems), not an image, so it is not registered here. */
+export const TOKYO_SUIBO_CAMERA_KBN = '07';
+export const DEFAULT_TOKYO_SUIBO_MAX_SOURCES = 200;
+/** 東京駅: the prioritization anchor when the pack is capped. */
+export const TOKYO_SUIBO_ANCHORS = [{ lat: 35.6812, lon: 139.7671 }];
+/** The catalog page is ~600 KB of inline arrays; a station page is ~190 KB.
+ * These bound an upstream that streams an unbounded body. */
+export const TOKYO_SUIBO_MAX_CATALOG_BYTES = 8 * 1024 * 1024;
+export const TOKYO_SUIBO_MAX_STATION_BYTES = 2 * 1024 * 1024;
+/** Cameras capture every five minutes. Resolving the newest frame costs one
+ * station-page fetch, so a resolved URL is held until the next capture is due
+ * rather than for a fixed TTL: one page fetch per capture per viewed camera,
+ * and none at all for cameras nobody looks at. */
+export const TOKYO_SUIBO_CAPTURE_INTERVAL_MS = 5 * 60 * 1000;
+export const TOKYO_SUIBO_CAPTURE_SLACK_MS = 45 * 1000;
+
 /** Camera CATALOGS change rarely; 15 min keeps multi-megabyte upstream list refetches (Austin rows.json + 4 Caltrans districts + TfL + Ontario 511) infrequent. Frames are fetched per-request and are unaffected. */
 export const CCTV_SOURCE_CACHE_MS = 15 * 60 * 1000;
 /** Per-provider catalog-fetch timeout. Bounds the worst-case refresh so one

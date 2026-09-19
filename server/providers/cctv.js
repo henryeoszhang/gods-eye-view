@@ -9,6 +9,7 @@ import {
   proxyMediaResponse,
   fetchCctvImageFromUpstream,
   fetchTxdotSnapshot,
+  fetchTokyoSuiboSnapshot,
   fetchCctvMediaUpstream,
   watchDownstreamClose,
 } from './cctv/media.js';
@@ -357,10 +358,14 @@ export function cctvProxy({ sourceRoot = process.cwd() } = {}) {
             ? source?.url
             : '');
 
+        // Tokyo registers no frame URL: its filenames carry the capture
+        // timestamp, so the newest one is resolved from the station page here.
         const upstreamImage =
-          source?.sourceKind === 'txdot-its'
-            ? await fetchTxdotSnapshot(upstreamCandidate)
-            : await fetchCctvImageFromUpstream(upstreamCandidate);
+          source?.sourceKind === 'tokyo-suibo'
+            ? await fetchTokyoSuiboSnapshot(source)
+            : source?.sourceKind === 'txdot-its'
+              ? await fetchTxdotSnapshot(upstreamCandidate)
+              : await fetchCctvImageFromUpstream(upstreamCandidate);
         if (upstreamImage?.ok) {
           setHealth(cameraId, {
             status: 'ok',
