@@ -1,6 +1,10 @@
 export function _initCctvPanel() {
   if (!this._cctvPanel) return;
 
+  this.listen(this._cctvLiveBtn, 'click', () => {
+    this._toggleCctvLiveVideo(this._cctvState?.activeCamera || null);
+  });
+
   this.listen(this._cctvEnableBtn, 'click', async () => {
     this._actionGeneration++;
     await this.actions.toggleEnabled();

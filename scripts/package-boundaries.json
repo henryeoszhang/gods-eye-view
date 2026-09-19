@@ -413,7 +413,9 @@
       "src/ui/cctvCalibration.js",
       "src/ui/cctvControls.js",
       "src/ui/cctvFrames.js",
-      "src/ui/cctvPresentation.js"
+      "src/ui/cctvPresentation.js",
+      "src/ui/cctvLiveVideo.js",
+      "src/data/embedSupport.js"
     ],
     "external": []
   },
@@ -580,7 +582,9 @@
       "src/ui/aircraftDisplay.js",
       "src/ui/layerBindings.js",
       "src/ui/displayBindings.js",
-      "src/ui/shellFacade.js"
+      "src/ui/shellFacade.js",
+      "src/data/embedSupport.js",
+      "src/ui/cctvLiveVideo.js"
     ],
     "external": ["cesium"]
   },
@@ -1809,7 +1813,9 @@
       "src/director/sharing/lifetime.js",
       "src/director/authoring.js",
       "src/scenes/sharing.js",
-      "src/ui/sceneSharing.js"
+      "src/ui/sceneSharing.js",
+      "src/data/embedSupport.js",
+      "src/ui/cctvLiveVideo.js"
     ],
     "external": [
       "@mapbox/vector-tile",
@@ -2203,7 +2209,8 @@
       "src/sources/overpassFeaturesRecords.js",
       "src/sources/overpassFeatures.js",
       "src/sources/featureSource.js",
-      "src/sources/overpassRoads.js"
+      "src/sources/overpassRoads.js",
+      "src/data/embedSupport.js"
     ],
     "external": [
       "cesium",

@@ -159,6 +159,10 @@ export function cctvProxy({ sourceRoot = process.cwd() } = {}) {
               poseSource: source.poseSource,
               license: source.license,
               credit: source.credit || '',
+              // Drives the panel's live-video control. stationCode is
+              // deliberately NOT published: it is a server-side key for
+              // resolving a frame, and the client never fetches upstream.
+              liveVideoId: source.liveVideoId || '',
               code: source.code || '',
               groundHeights: source.groundHeights || null,
             })),

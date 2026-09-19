@@ -185,6 +185,7 @@ export function _renderCctvState(state) {
     }
   }
 
+  this._syncCctvLiveVideo(activeCamera, enabled);
   this._syncCctvSourceBadge(activeCamera, enabled);
   this._typeCctvSummary(
     state?.summary ||

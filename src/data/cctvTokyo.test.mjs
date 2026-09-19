@@ -3,7 +3,9 @@ import test from 'node:test';
 import {
   parseTokyoSuiboCatalog,
   isLikelyTokyoCoordinate,
+  tokyoLiveVideoId,
 } from '../../server/providers/cctv/sources.js';
+import { supportsProviderEmbeds } from './embedSupport.js';
 import {
   resolveTokyoSuiboFrameUrl,
   tokyoSuiboFrameExpiry,
@@ -22,6 +24,7 @@ function catalogPage({
     var arrryKansokujoNm = ${arr(['鎌田橋野川', '内匠橋', '八ッ瀬川'])};
     var arrryKansokujoKbn = ${arr(kbn)};
     var arrryTougouCd = ${arr(['304009', '105002', '515001'])};
+    var arrryVideoPageAddress = ${arr(['https://www.youtube.com/watch?v=fk37cmRWx3c&list=PLx', 'null', 'https://youtube.com/live/n1TtSZ7z7c0'])};
     var arrayIdoFun = ${arr(['35', '35', '27'])};
     var arrryIdoFun = ${arr(['37', '47', '3'])};
     var arrryIdoByo = ${arr(['15.75', '31.46', '33.34'])};
@@ -124,4 +127,42 @@ test('a stale or unparseable capture time still bounds the memo', () => {
   assert.ok(tokyoSuiboFrameExpiry(ancient, now) >= now + 30_000);
   const junk = 'https://www.kasen-suibo.metro.tokyo.lg.jp/img/itv/7B08/nope.jpeg';
   assert.equal(tokyoSuiboFrameExpiry(junk, now), now + 5 * 60 * 1000);
+});
+
+// --- live video -----------------------------------------------------------
+
+test('reads the three link shapes the bureau publishes', () => {
+  assert.equal(tokyoLiveVideoId('https://www.youtube.com/watch?v=fk37cmRWx3c'), 'fk37cmRWx3c');
+  assert.equal(tokyoLiveVideoId('https://youtu.be/8p11ESAA15w'), '8p11ESAA15w');
+  assert.equal(tokyoLiveVideoId('https://youtube.com/live/MOYui7vUqsE?feature=share'), 'MOYui7vUqsE');
+  // A playlist tail must not be mistaken for the video.
+  assert.equal(
+    tokyoLiveVideoId('https://www.youtube.com/watch?v=fk37cmRWx3c&list=PLgqzusg'),
+    'fk37cmRWx3c',
+  );
+});
+
+test('refuses anything that is not a YouTube video id', () => {
+  for (const value of ['', 'null', 'not a url', 'https://evil.example/watch?v=abcdefghijk',
+    'https://www.youtube.com/watch?v=short', 'https://www.youtube.com/'])
+    assert.equal(tokyoLiveVideoId(value), null, value);
+});
+
+test('carries the live video id only for cameras that have one', () => {
+  const [kamata, ogasawara] = parseTokyoSuiboCatalog(catalogPage());
+  assert.equal(kamata.liveVideoId, 'fk37cmRWx3c');
+  assert.equal(ogasawara.liveVideoId, 'n1TtSZ7z7c0');
+  assert.equal(normalizeSourceItem(kamata).liveVideoId, 'fk37cmRWx3c');
+  // A malformed id must not reach the panel as an embed target.
+  assert.equal(normalizeSourceItem({ ...kamata, liveVideoId: 'nope' }).liveVideoId, '');
+});
+
+test('provider embeds are off inside the Pinokio shell and on in a browser', () => {
+  const ua = (userAgent) => ({ navigator: { userAgent } });
+  assert.equal(supportsProviderEmbeds(ua('Mozilla/5.0 Chrome/140.0 Safari/537.36')), true);
+  assert.equal(
+    supportsProviderEmbeds(ua('Mozilla/5.0 Electron/32 Pinokio/8.2.0 Safari/537.36')),
+    false,
+  );
+  assert.equal(supportsProviderEmbeds({}), true);
 });

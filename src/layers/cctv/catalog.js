@@ -195,6 +195,9 @@ export function createCatalog({ state: layerState, services, parts, source }) {
         groundElevationM,
         absoluteHeightM: groundElevationM + mountHeightM,
         pitchDeg,
+        liveVideoId: /^[\w-]{11}$/.test(String(source.liveVideoId || ''))
+          ? String(source.liveVideoId)
+          : '',
         license: String(source.license || source.licenseNote || ''),
         credit: String(source.credit || ''),
         code: String(source.code || ''),

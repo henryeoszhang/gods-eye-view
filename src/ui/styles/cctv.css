@@ -349,3 +349,32 @@
   color: #a8f7ff;
   text-shadow: 0 0 10px rgba(0, 212, 255, 0.18);
 }
+
+/* Live player for cameras whose operator also broadcasts them. It covers the
+   still while playing; the projected plane keeps the still, because a
+   cross-origin embed cannot be read into the canvas the plane is textured
+   from. */
+.cctv-live-embed {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: #000;
+}
+
+.cctv-live-embed iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.cctv-frame-wrap.live-playing #cctv-frame {
+  visibility: hidden;
+}
+
+.cctv-live-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

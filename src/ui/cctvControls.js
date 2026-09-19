@@ -16,6 +16,11 @@ import {
   _typeCctvSummary,
   _updateCctvSyncChip,
 } from './cctvPresentation.js';
+import {
+  _clearCctvLiveVideo,
+  _syncCctvLiveVideo,
+  _toggleCctvLiveVideo,
+} from './cctvLiveVideo.js';
 import { _initCctvPanel } from './cctvBindings.js';
 
 /** Own camera-panel interaction and presentation; receive the camera port and application actions. */
@@ -35,6 +40,7 @@ export class CctvControls {
     this._cctvChipWasBusy = false;
     this._cctvFrameRequestToken = 0;
     this._cctvFramePreloader = null;
+    this._cctvLiveVideoId = '';
     this._calibrationEdit = null;
     this._actionGeneration = 0;
     this._initCctvPanel();
@@ -93,6 +99,15 @@ export class CctvControls {
   _updateCctvSyncChip(...args) {
     return _updateCctvSyncChip.call(this, ...args);
   }
+  _clearCctvLiveVideo(...args) {
+    return _clearCctvLiveVideo.call(this, ...args);
+  }
+  _syncCctvLiveVideo(...args) {
+    return _syncCctvLiveVideo.call(this, ...args);
+  }
+  _toggleCctvLiveVideo(...args) {
+    return _toggleCctvLiveVideo.call(this, ...args);
+  }
   _initCctvPanel(...args) {
     return _initCctvPanel.call(this, ...args);
   }
@@ -105,6 +120,7 @@ export class CctvControls {
     this._cctvUnsubscribe = null;
     this._calibrationEdit?.(false);
     this._clearCctvFrame();
+    this._clearCctvLiveVideo();
     clearInterval(this._cctvSummaryTypingTimer);
     clearTimeout(this._cctvChipHideTimer);
     this._cctvSummaryTypingTimer = null;

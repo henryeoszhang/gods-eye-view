@@ -23,6 +23,11 @@
       </div>
       <div id="cctv-frame-wrap" class="cctv-frame-wrap">
         <img id="cctv-frame" alt="CCTV feed frame" />
+        <!-- Live player for cameras whose operator also broadcasts them. It
+             covers the still while playing; the projected plane keeps the
+             still, because a cross-origin embed cannot be read into the
+             canvas the plane is textured from. -->
+        <div id="cctv-live-embed" class="cctv-live-embed" hidden></div>
       </div>
       <div id="cctv-source-badge" role="status" aria-live="polite">SOURCE · UNKNOWN</div>
       <div id="cctv-meta">Enable CCTV to load camera intersections</div>
@@ -43,6 +48,10 @@
       <div class="cctv-controls">
         <button id="cctv-projection-btn" class="scene-btn">PROJECTION ON</button>
         <span id="cctv-quality-chip">CAL · --</span>
+      </div>
+      <div class="cctv-controls">
+        <button id="cctv-live-btn" class="scene-btn" type="button" aria-pressed="false" hidden>LIVE VIDEO</button>
+        <a id="cctv-live-link" class="scene-btn cctv-live-link" target="_blank" rel="noopener noreferrer" hidden>OPEN LIVE STREAM ↗</a>
       </div>
       <div class="cctv-calibration-block">
         <div class="cctv-calibration-header">

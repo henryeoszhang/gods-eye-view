@@ -145,6 +145,10 @@ const entries = {
   // Layer panels
   'DATA LAYERS': '数据图层',
   'CCTV feed frame': 'CCTV 画面帧',
+  'LIVE VIDEO': '实时视频',
+  'OPEN LIVE STREAM ↗': '打开实时直播 ↗',
+  'Live camera stream': '摄像头实时直播',
+  'Play the operator’s live stream in this panel': '在本面板播放运营方的实时直播',
   'SOURCE · UNKNOWN': '来源 · 未知',
   'Enable CCTV to load camera intersections': '启用 CCTV 以加载摄像头交叉点',
   'CCTV OFF': 'CCTV 关闭',

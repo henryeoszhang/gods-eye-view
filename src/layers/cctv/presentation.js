@@ -83,6 +83,9 @@ export function createPresentation({
       mountHeightM: camera.mountHeightM,
       active: isActive,
       feedType: camera.feedType,
+      // Drives the panel's live-video control. Empty for every camera
+      // whose operator publishes stills only.
+      liveVideoId: camera.liveVideoId || '',
       sourceKind:
         health?.sourceKind ||
         camera.sourceKind ||

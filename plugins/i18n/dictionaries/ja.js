@@ -148,6 +148,10 @@ const entries = {
   // Layer panels
   'DATA LAYERS': 'データレイヤー',
   'CCTV feed frame': 'CCTV 映像フレーム',
+  'LIVE VIDEO': 'ライブ映像',
+  'OPEN LIVE STREAM ↗': 'ライブ配信を開く ↗',
+  'Live camera stream': 'カメラのライブ配信',
+  'Play the operator’s live stream in this panel': 'このパネルで運用者のライブ配信を再生',
   'SOURCE · UNKNOWN': 'ソース · 不明',
   'Enable CCTV to load camera intersections': 'CCTV を有効にするとカメラの交差点を読み込みます',
   'CCTV OFF': 'CCTV オフ',

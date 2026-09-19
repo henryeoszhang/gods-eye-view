@@ -1,3 +1,4 @@
+import { supportsProviderEmbeds } from './embedSupport.js';
 import * as Cesium from 'cesium';
 
 const YOUTUBE_HOSTS = new Set([
@@ -598,10 +599,11 @@ export function createBhoteKoshiEmbeddedMedia({
   // Pinokio externalizes HTTPS iframe navigation, including hidden preloads.
   // Use the existing source-card/local-clip fallback before allocating provider
   // resources. Browsers visiting the same Pinokio-launched server keep embeds.
-  const pinokioShell = /(?:^|\s)Pinokio\/[^\s]+/i.test(
-    globalRef.navigator?.userAgent || '',
-  );
-  if (pinokioShell || !documentRef?.createElement || !viewer) {
+  if (
+    !supportsProviderEmbeds(globalRef) ||
+    !documentRef?.createElement ||
+    !viewer
+  ) {
     return {
       supportsPlayback: false,
       warm: () => false,

@@ -1603,6 +1603,37 @@ export async function loadCalgarySourcesFromOpenData() {
   }
 }
 
+/**
+ * YouTube video id from the bureau's live-page link, or null.
+ *
+ * The flood-information page publishes three shapes for the same channel:
+ * `/watch?v=ID` (sometimes with a `&list=`), `youtu.be/ID`, and `/live/ID`.
+ *
+ * @param {string} url
+ * @returns {?string} An 11-character YouTube id.
+ */
+export function tokyoLiveVideoId(url) {
+  const text = String(url ?? '').trim();
+  if (!text || text === 'null') return null;
+  let parsed;
+  try {
+    parsed = new URL(text);
+  } catch {
+    return null;
+  }
+  const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+  let id = '';
+  if (host === 'youtu.be') id = parsed.pathname.slice(1);
+  else if (host === 'youtube.com' || host === 'm.youtube.com') {
+    if (parsed.pathname === '/watch') id = parsed.searchParams.get('v') || '';
+    else {
+      const live = parsed.pathname.match(/^\/(?:live|embed|shorts)\/([^/]+)/);
+      if (live) [, id] = live;
+    }
+  }
+  return /^[\w-]{11}$/.test(id) ? id : null;
+}
+
 /** Tokyo's flood-information map page inlines its station table as a set of
  * parallel `var name = ['a','b',...]` arrays. Read one of them. */
 function tokyoSuiboArray(html, name) {
@@ -1649,6 +1680,7 @@ export function parseTokyoSuiboCatalog(html) {
   const name = tokyoSuiboArray(text, 'arrryKansokujoNm');
   const kind = tokyoSuiboArray(text, 'arrryKansokujoKbn');
   const station = tokyoSuiboArray(text, 'arrryTougouCd');
+  const live = tokyoSuiboArray(text, 'arrryVideoPageAddress');
   // The latitude-degrees array is the one upstream name without the doubled
   // "rr" typo the others carry; both spellings are load-bearing.
   const latDeg = tokyoSuiboArray(text, 'arrayIdoFun');
@@ -1690,6 +1722,7 @@ export function parseTokyoSuiboCatalog(html) {
     if (seen.has(id)) continue;
     seen.add(id);
     const label = String(name[index] || '').trim() || cameraCode;
+    const liveVideoId = tokyoLiveVideoId(live[index]);
     cameras.push({
       id,
       name: label,
@@ -1718,6 +1751,11 @@ export function parseTokyoSuiboCatalog(html) {
       // stable URL to register here. The proxy resolves the newest frame per
       // camera at frame time; `stationCode` is the key it resolves with.
       stationCode,
+      // The bureau streams the same camera live on its YouTube channel. The
+      // 3D plane textures a <video> element through a canvas and cannot read
+      // a cross-origin embed, so this drives the panel player and the
+      // open-the-stream control, never the projection.
+      ...(liveVideoId ? { liveVideoId } : {}),
       sourceKind: 'tokyo-suibo',
       license:
         'Camera positions: 東京都建設局 河川監視カメラ位置情報データ (CC BY 4.0). ' +

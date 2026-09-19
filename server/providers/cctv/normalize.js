@@ -514,6 +514,11 @@ export function normalizeSourceItem(item) {
     // front. Tokyo's frame filenames carry the capture timestamp, so the
     // proxy resolves the newest one per camera from this station code.
     stationCode: String(item.stationCode || '').trim(),
+    // Live stream for a camera whose operator also broadcasts it. The
+    // panel plays it; the projected plane cannot (cross-origin embed).
+    liveVideoId: /^[\w-]{11}$/.test(String(item.liveVideoId || ''))
+      ? String(item.liveVideoId)
+      : '',
     // Optional CAL badge input (cctv-v2 design §3b/§9.2, additive-only per the
     // global constraints — nothing else in this file changes): hand-authored
     // file/env catalog entries may declare poseSource:'curated' so the panel
